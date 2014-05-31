@@ -19,3 +19,11 @@ $(document).ready(function() {
 		}
 	});
 });
+
+$.getJSON('http://communities.socrata.com/resource/xbyf-k2dy.json', function(data) {
+	var rows = '';
+	for (var i = 0; i < data.length; i++) {
+		rows += '<tr><td>ID</td><td>' + data[i].phv + '</td><td>' + data[i].incident_address + '</td><td>' + data[i].township + '</td><td>' + data[i].age_factor + ' days</td></tr>';
+	};
+	$('.dataTable tbody').append(rows);
+})
