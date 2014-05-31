@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="initial-scale=1.0" />
+		<style type="text/css">
+			html {
+				height: 100%
+			}
+
+			body {
+				height: 100%;
+				margin: 0;
+				padding: 0
+			}
+
+			#wrapper {
+				width: 900px;
+			}
+
+			#map-canvas {
+				height: 400px;
+				width: 400px;
+			}
+
+			#form {
+				position: absolute;
+				left: 420px;
+			}
+
+			input {
+				display: block;
+			}
+
+			input[name=address] {
+				width: 300px;
+			}
+
+			#userData {
+				width: 480px;
+				float: left;
+			}
+
+			#pinData {
+				float: right;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="wrapper">
+			<div id="form">
+				<form action="" method="">
+					<input type="text" name="address" id="address" value="4246 Kerry Drive">
+					<input type="text" name="locality" id="locality" value="Indianapolis">
+					<input type="text" name="admin1" id="admin1" value="IN">
+					<input type="text" name="postalcode" id="postalcode" value="46239">
+					<input type="text" name="country" id="country" value="United States">
+					<button>Submit</button>
+				</form>
+			</div>
+			<div id="map-canvas"></div>
+		</div>
+
+		<script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+		<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA-7Rf105F_oZTEGUYKeQezBv7AzlUGwKU&sensor=true"></script>
+		<script type="text/javascript">
+			var address = {
+				streetNumber: '',
+				route: '',
+				address: '',
+				neighborhood: '',
+				locality: '',
+				admin3: '',
+				admin2: '',
+				admin1: '',
+				postalcode: '',
+				postaltown: '',
+				country: '',
+				latLng: '',
+				formattedAddress: '',
+				renderAddy: function(){
+					return this.address + ' ' + this.locality + ', ' + this.admin1 + ' ' + this.postalcode + ' ' + this.country;
+				}
+			}
+			var map;
+			var markersArray = [];
+			var prevMarkerLoc;
+
+			google.maps.event.addDomListener(window, 'load', initialize);
+			$('button').click(handleFormSubmit);
+
+			function initialize() {
+				var mapOptions = {
+					center: new google.maps.LatLng(39.768403,-86.158068),
+					zoom: 3,
+					mapTypeId: google.maps.MapTypeId.ROADMAP,
+					draggable: true,
+					panControl: false,
+					streetViewControl: false,
+					mapTypeControl: false
+				};
+
+				map = new google.maps.Map(
+					document.getElementById("map-canvas"),
+					mapOptions
+				);
+
+				var trafficLayer = new google.maps.TrafficLayer();
+  				trafficLayer.setMap(map);
+  				console.dir(trafficLayer);
+			}
+
+			function clearMarkers(){
+				for (var i = markersArray.length - 1; i >= 0; i--) {
+					markersArray[i].setMap(null);
+				};
+				markersArray = [];
+			}
+
+			function handleFormSubmit(){
+				address.address = $('input[name=address]').val().trim();
+				address.locality = $('input[name=locality]').val().trim();
+				address.admin1 = $('input[name=admin1]').val().trim();
+				address.postalcode = $('input[name=postalcode]').val().trim();
+				address.country = $('input[name=country]').val().trim();
+
+				var geocoder = new google.maps.Geocoder();
+				geocoder.geocode( { 'address': address.renderAddy() }, handleGeocode);
+
+				return false;
+			}
+
+			function handleGeocode(results, status){
+				if (status == google.maps.GeocoderStatus.OK) {
+					clearMarkers();
+
+					address.latLng = results[0].geometry.location;
+					address.formattedAddress = results[0].formatted_address;
+
+					var addyParts = results[0].address_components;
+					for (addyPart in addyParts){
+						var curPart = addyParts[addyPart];
+						switch(curPart.types[0]){
+							case "administrative_area_level_1":
+								address.admin1 = curPart.long_name;
+							break;
+
+							case "country":
+								address.country = curPart.long_name;
+							break;
+
+							case "postal_code":
+								address.postalcode = curPart.long_name;
+							break;
+						}
+					}
+
+					var marker = new google.maps.Marker({
+						position: address.latLng,
+						draggable: true,
+						map: map
+					});
+					markersArray.push(marker);
+					google.maps.event.addListener(marker, 'dragend', handleNudge);
+					google.maps.event.addListener(marker, 'dragstart', function(){
+						prevMarkerLoc = marker.getPosition();
+					});
+
+					map.setCenter(address.latLng);
+					map.setZoom(13);
+					// console.log(address.latLng);
+				} else {
+					// console.log('geocode failure');
+					alert("Oops. We couldn't find your address.");
+				}
+			}
+
+			function handleNudge(e){
+				var targetMarker = this;
+				var dragLatLng = new google.maps.LatLng(e.latLng.lat(), e.latLng.lng());
+				var geocoder = new google.maps.Geocoder();
+				geocoder.geocode({'latLng': dragLatLng}, function(results, status) {
+					if (status == google.maps.GeocoderStatus.OK) {
+						if (results[1]) {
+							console.log(results);
+							var dragAddress = formatAddyParts(results[1].address_components);
+							var nudgeValid = validateNudge(dragAddress, targetMarker);
+							if(nudgeValid){
+								address.latLng = results[1].geometry.location;
+							}
+						} else {
+							alert("Sorry, we couldn't find any info about that location");
+							targetMarker.setPosition(prevMarkerLoc);
+						}
+					} else {
+						alert("Sorry, we couldn't find any info about that location");
+						targetMarker.setPosition(prevMarkerLoc);
+					}
+					// console.log(address);
+				});
+			}
+
+			function formatAddyParts(addyParts){
+				var output = {
+					streetNumber: '',
+					route: '',
+					address: '',
+					neighborhood: '',
+					locality: '',
+					admin3: '',
+					admin2: '',
+					admin1: '',
+					postalcode: '',
+					postaltown: '',
+					country: '',
+					latLng: '',
+					formattedAddress: '',
+					renderAddy: function(){
+						return this.address + ' ' + this.locality + ', ' + this.admin1 + ' ' + this.postalcode + ' ' + this.country;
+					}
+				}
+
+				for (addyPart in addyParts){
+					var curPart = addyParts[addyPart];
+					switch(curPart.types[0]){
+						case "street_number":
+							output.streetNumber = curPart.long_name;
+						break;
+
+						case "route":
+							output.route = curPart.long_name;
+						break;
+
+						case "neighborhood":
+							output.neighborhood = curPart.long_name;
+						break;
+
+						case "locality":
+							output.locality = curPart.long_name;
+						break;
+
+						case "administrative_area_level_1":
+							output.admin1 = curPart.long_name;
+						break;
+
+						case "administrative_area_level_2":
+							output.admin2 = curPart.long_name;
+						break;
+
+						case "administrative_area_level_3":
+							output.admin3 = curPart.long_name;
+						break;
+
+						case "country":
+							output.country = curPart.long_name;
+						break;
+
+						case "postal_code":
+							output.postalcode = curPart.long_name;
+						break;
+
+						case "postal_town":
+							output.postaltown = curPart.long_name;
+						break;
+					}
+				}
+
+				return output;
+			}
+
+			function validateNudge(addyParts, targetMarker){
+				if(address.country == addyParts.country){
+					// console.log('country good', address.country, addyParts.country);
+					if(address.admin1 == addyParts.admin1){
+						// console.log('admin1 good', address.admin1, addyParts.admin1);
+						return true;
+					} else {
+						alert('Your pin has moved too far from  your address');
+						// console.log('admin1 bad', address.admin1, addyParts.admin1);
+						targetMarker.setPosition(prevMarkerLoc);
+						return false;
+					}
+				} else {
+					alert("Your pin has left the "+address.country+'...');
+					// console.log('country bad', address.country, addyParts.country);
+					targetMarker.setPosition(prevMarkerLoc);
+					return false;
+				}
+			}
+		</script>
+	</body>
+</html>
+v
