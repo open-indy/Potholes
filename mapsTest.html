@@ -24,6 +24,7 @@ function initialize() {
 
   var trafficLayer = new google.maps.TrafficLayer();
   trafficLayer.setMap(map);
+  console.log(trafficLayer);
 }
 
 google.maps.event.addDomListener(window, 'load', initialize);
