@@ -135,8 +135,10 @@ textarea {
 
 .dataTable th {
     text-align: left;
-    background: rgba(0, 0, 0, 0.14);
+    color: #fff;
+    background: rgba(0, 0, 0, 0.85);
     border-bottom: 1px dashed #aaa;
+    padding: 1.25em .625em;
 }
 
 .dataTable tbody tr {
@@ -145,10 +147,6 @@ textarea {
 
 .dataTable tbody td {
     display: block;
-}
-
-.dataTable tr:nth-child(odd) {
-    background: rgba(0, 0, 0, 0.07);
 }
 
 @media only screen and (min-width: 800px) {
@@ -160,6 +158,8 @@ textarea {
 
     .dataTable {
         display: table;
+        border-radius: 10px;
+        overflow: hidden;
     }
 
     .dataTable thead {
